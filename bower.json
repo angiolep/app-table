@@ -1,0 +1,30 @@
+{
+  "name": "app-table",
+  "homepage": "https://github.com/angiolep/app-table",
+  "main": ["app-table.html", "ppaTable.js"],
+  "authors": [
+    "Paolo Angioletti <paolo.angioletti@gmail.com>"
+  ],
+  "description": "A web-component table widget with fixed headers and editable cells.",
+  "main": "app-table.html",
+  "keywords": [
+    "polymer",
+    "web-component",
+    "web-components"
+  ],
+  "license": "http://unlicense.org",
+  "ignore": [
+    "**/.*",
+    "bower_components",
+    "test",
+    "demo"
+  ],
+  "dependencies": {
+    "polymer": "~1.2.3"
+  },
+  "devDependencies": {
+    "web-component-tester": "~4.1.0",
+    "iron-component-page": "PolymerElements/iron-component-page#~1.1.4",
+    "angular": "^1.5.0"
+  }
+}
