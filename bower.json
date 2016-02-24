@@ -5,7 +5,7 @@
   "authors": [
     "Paolo Angioletti <paolo.angioletti@gmail.com>"
   ],
-  "description": "A web-component table widget with fixed headers and editable cells.",
+  "description": "A web-component table wrapper which provides data grid with fixed headers and editable cells.",
   "main": "app-table.html",
   "keywords": [
     "polymer",

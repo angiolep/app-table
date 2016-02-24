@@ -1,18 +1,95 @@
 <link rel="import" href="../polymer/polymer.html">
 <!--
-  A web-component table widget with fixed headers and editable cells.
+  ## AppTable
+
+  A web-component table wrapper which provides data grid with fixed headers and editable cells.
+
+  ### Usage
+  ```bash
+    bower install angiolep/app-table --save
+  ```
+
+  ```html
+    <link rel="import" href="bower_components/app-table/app-table.html">
+
+    <app-table>
+      <table>
+        <col label="h1" editable type="number">
+        <col label="header2" editable type="date">
+        <col label="">
+        <col label="very long header three" editable>
+      </table>
+    </app-table>
+  ```
+
+  ### Columns
+
+  ```<app-table>``` expects an embedded HTML5 ``<table>`` to be given as its content. Its columns are expected to be defined via HTML5 ``<col>`` elements with following attributes:
+
+    - ``label``
+    - ``type``
+    - ``editable``
 
   @demo
 -->
 <dom-module id="app-table">
 <template>
-  app-table
+  <content select="table"></content>
 </template>
 <script>
 ;!function() {
+
+  var cols = [];
+
   Polymer({
-    is: 'app-table'
+    is: 'app-table',
+
+    ready: function() {
+      var i;
+      var contentChildren = this.getContentChildren();
+      if (contentChildren.length > 0) {
+        var table = contentChildren[0];
+
+        // remove thead if it's been given in content
+        var thead = table.querySelectorAll('thead', table);
+        if (thead.length > 0) {
+          table.removeChild(thead);
+        }
+
+
+        var colChildren = table.querySelectorAll('col');
+        if (colChildren.length > 0) {
+          thead = document.createElement('thead');
+          table.appendChild(thead);
+          var tr = document.createElement('tr');
+          thead.appendChild(tr);
+
+          for (i = 0; i < colChildren.length; i++) {
+            cols.push({
+              label: colChildren[i].getAttribute('label'),
+              type: colChildren[i].getAttribute('type'),
+              editable: colChildren[i].hasAttribute('editable')
+            });
+            var th = document.createElement('th');
+            th.textContent = cols[i].label;
+            tr.appendChild(th);
+          }
+        }
+        else {
+          console.warn('<app-table> expects <table><col> elements');
+        }
+
+        // remove other tables if they've been given in content
+        for (i = 1; i < contentChildren.length; i++) {
+          console.warn('<app-table> can wrap one <table> only');
+          // TODO remove other tables if they've been given in content
+        }
+
+      } else {
+        console.warn('<app-table> expects a <table> to be wrapped');
+      }
+    }
   });
-}
+}();
 </script>
 </dom-module>

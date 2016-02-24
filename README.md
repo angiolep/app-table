@@ -1,5 +1,5 @@
 # app-table
-A web-component table widget with fixed headers and editable cells.
+A web-component table wrapper which provides data grid with fixed headers and editable cells.
 
 Docs and demo are available at
 
