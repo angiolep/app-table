@@ -32,17 +32,7 @@
     - ``editable``
 
   ### Data
-  ``<app-table>`` expects an array of records (each records is turn an array) being set via its ``data`` property as follows:
-
-  ```javascript
-    document.querySelector('app-table')
-      .data = [
-        [13.24,'2015-12-24',null,'hello'],
-        [43.31,'20156-08-30','world',null]
-      ];
-  ```
-
-  or as JSON string via its ``data`` attribute as follows:
+  ``<app-table>`` expects an array of records (each records is turn an array) being set via its ``data`` attribute as follows:
 
   ```html
     <app-table data='[[43.31,"20156-08-30","world",null]]'>
@@ -55,6 +45,18 @@
     </app-table>
 
   ```
+
+  or using Javascript as follows:
+
+  ```javascript
+    document.querySelector('app-table')
+      .data = [
+        [13.24,'2015-12-24',null,'hello'],
+        [43.31,'20156-08-30','world',null]
+      ];
+  ```
+
+
 
   @demo
 -->
@@ -76,29 +78,27 @@
   };
 
   var update = function(table, data) {
+    var tbody = table.querySelector('tbody', table);
+    if (tbody) {
+      table.removeChild(tbody);
+    }
+
     if (data && data.length > 0) {
+      tbody = el('tbody', table);
 
-      var tbody = table.querySelectorAll('tbody', table);
-      if (tbody.length > 0) {
-        table.removeChild(tbody);
-      }
+      var i, tr, j, td, appInput;
+      for (i = 0; i < data.length; i++) {
+        var record = data[i];
+        tr = el('tr', tbody);
 
-      if (data.length > 0) {
-        tbody = el('tbody', table);
-
-        var i, tr, j, td, appInput;
-        for (i = 0; i < data.length; i++) {
-          var record = data[i];
-          tr = el('tr', tbody);
-
-          for (j = 0; j < record.length; j++) {
-            td = el('td', tr);
-            appInput = el('app-input', td);
-            appInput.value = record[j];
-            appInput.setAttribute('type', cols[j].type);
-            if (!cols[j].editable) {
-              appInput.setAttribute('readonly', true);
-            }
+        for (j = 0; j < cols.length; j++) {
+          td = el('td', tr);
+          appInput = el('app-input', td);
+          // value could be undefined if record is shorter than cols
+          appInput.value = record[j];
+          appInput.setAttribute('type', cols[j].type);
+          if (!cols[j].editable) {
+            appInput.setAttribute('readonly', true);
           }
         }
       }
@@ -115,52 +115,56 @@
        */
       data: {
         type: Array,
-        value: function() { return []; }
+        value: function() { return []; },
+        observer: '_update'
       }
     },
 
-    ready: function() {
+    _update: function(newValue, oldValue) {
+      if (newValue && newValue !== oldValue) {
+        update(this._table(), newValue);
+      }
+    },
 
+    _table: function() {
       var contentChildren = this.getContentChildren();
       if (contentChildren.length > 0) {
-        var table = contentChildren[0];
+        // TODO remove additional tables that might have been given in content
+        return contentChildren[0];
+      }
+      else {
+        throw '<app-table> expects a <table> to be wrapped';
+      }
+    },
 
-        // remove thead if it's been given in content
-        var thead = table.querySelectorAll('thead', table);
-        if (thead.length > 0) {
-          table.removeChild(thead);
+
+    ready: function() {
+      var table = this._table();
+
+      // remove thead if it's been given in content
+      var thead = table.querySelector('thead', table);
+      if (thead) {
+        table.removeChild(thead);
+      }
+
+
+      var colChildren = table.querySelectorAll('col');
+      if (colChildren.length > 0) {
+        thead = el('thead', table);
+        var tr = el('tr', thead);
+
+        for (var i = 0; i < colChildren.length; i++) {
+          cols.push({
+            label: colChildren[i].getAttribute('label'),
+            type: colChildren[i].getAttribute('type'),
+            editable: colChildren[i].hasAttribute('editable')
+          });
+          var th = el('th', tr);
+          th.textContent = cols[i].label;
         }
-
-
-        var colChildren = table.querySelectorAll('col');
-        if (colChildren.length > 0) {
-          thead = el('thead', table);
-          var tr = el('tr', thead);
-
-          for (var i = 0; i < colChildren.length; i++) {
-            cols.push({
-              label: colChildren[i].getAttribute('label'),
-              type: colChildren[i].getAttribute('type'),
-              editable: colChildren[i].hasAttribute('editable')
-            });
-            var th = el('th', tr);
-            th.textContent = cols[i].label;
-          }
-        }
-        else {
-          console.warn('<app-table> expects <table><col> elements');
-        }
-
-        update(table, this.data);
-
-        // remove other tables if they've been given in content
-        for (i = 1; i < contentChildren.length; i++) {
-          console.warn('<app-table> can wrap one <table> only');
-          // TODO remove other tables if they've been given in content
-        }
-
-      } else {
-        console.warn('<app-table> expects a <table> to be wrapped');
+      }
+      else {
+        console.warn('<app-table> expects <table><col> elements');
       }
     }
   });
