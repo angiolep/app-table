@@ -1,4 +1,5 @@
 <link rel="import" href="../polymer/polymer.html">
+<link rel="import" href="../app-input/app-input.html">
 <!--
   ## AppTable
 
@@ -30,22 +31,96 @@
     - ``type``
     - ``editable``
 
+  ### Data
+  ``<app-table>`` expects an array of records (each records is turn an array) being set via its ``data`` property as follows:
+
+  ```javascript
+    document.querySelector('app-table')
+      .data = [
+        [13.24,'2015-12-24',null,'hello'],
+        [43.31,'20156-08-30','world',null]
+      ];
+  ```
+
+  or as JSON string via its ``data`` attribute as follows:
+
+  ```html
+    <app-table data='[[43.31,"20156-08-30","world",null]]'>
+      <table>
+        <col label="h1" editable type="number">
+        <col label="header2" editable type="date">
+        <col label="">
+        <col label="very long header three" editable>
+      </table>
+    </app-table>
+
+  ```
+
   @demo
 -->
 <dom-module id="app-table">
+
 <template>
   <content select="table"></content>
 </template>
+
 <script>
 ;!function() {
 
   var cols = [];
 
+  var el = function(tagName, parent) {
+    var e = document.createElement(tagName);
+    parent.appendChild(e);
+    return e;
+  };
+
+  var update = function(table, data) {
+    if (data && data.length > 0) {
+
+      var tbody = table.querySelectorAll('tbody', table);
+      if (tbody.length > 0) {
+        table.removeChild(tbody);
+      }
+
+      if (data.length > 0) {
+        tbody = el('tbody', table);
+
+        var i, tr, j, td, appInput;
+        for (i = 0; i < data.length; i++) {
+          var record = data[i];
+          tr = el('tr', tbody);
+
+          for (j = 0; j < record.length; j++) {
+            td = el('td', tr);
+            appInput = el('app-input', td);
+            appInput.value = record[j];
+            appInput.setAttribute('type', cols[j].type);
+            if (!cols[j].editable) {
+              appInput.setAttribute('readonly', true);
+            }
+          }
+        }
+      }
+    }
+  };
+
+
   Polymer({
     is: 'app-table',
 
+    properties: {
+      /**
+       * The data being set
+       */
+      data: {
+        type: Array,
+        value: function() { return []; }
+      }
+    },
+
     ready: function() {
-      var i;
+
       var contentChildren = this.getContentChildren();
       if (contentChildren.length > 0) {
         var table = contentChildren[0];
@@ -59,25 +134,24 @@
 
         var colChildren = table.querySelectorAll('col');
         if (colChildren.length > 0) {
-          thead = document.createElement('thead');
-          table.appendChild(thead);
-          var tr = document.createElement('tr');
-          thead.appendChild(tr);
+          thead = el('thead', table);
+          var tr = el('tr', thead);
 
-          for (i = 0; i < colChildren.length; i++) {
+          for (var i = 0; i < colChildren.length; i++) {
             cols.push({
               label: colChildren[i].getAttribute('label'),
               type: colChildren[i].getAttribute('type'),
               editable: colChildren[i].hasAttribute('editable')
             });
-            var th = document.createElement('th');
+            var th = el('th', tr);
             th.textContent = cols[i].label;
-            tr.appendChild(th);
           }
         }
         else {
           console.warn('<app-table> expects <table><col> elements');
         }
+
+        update(table, this.data);
 
         // remove other tables if they've been given in content
         for (i = 1; i < contentChildren.length; i++) {
