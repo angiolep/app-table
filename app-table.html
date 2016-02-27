@@ -3,7 +3,7 @@
 <!--
   ## AppTable
 
-  A web-component table wrapper which provides data grid with fixed headers and editable cells.
+  A web-component table wrapper which provides data grid with fixed headers.
 
   ### Usage
   ```bash
@@ -15,10 +15,10 @@
 
     <app-table>
       <table>
-        <col label="h1" editable type="number">
-        <col label="header2" editable type="date">
+        <col label="h1">
+        <col label="header2">
         <col label="">
-        <col label="very long header three" editable>
+        <col label="very long header three">
       </table>
     </app-table>
   ```
@@ -28,8 +28,6 @@
   ```<app-table>``` expects an embedded HTML5 ``<table>`` to be given as its content. Its columns are expected to be defined via HTML5 ``<col>`` elements with following attributes:
 
     - ``label``
-    - ``type``
-    - ``editable``
 
   ### Data
   ``<app-table>`` expects an array of records (each records is turn an array) being set via its ``data`` attribute as follows:
@@ -37,10 +35,10 @@
   ```html
     <app-table data='[[43.31,"20156-08-30","world",null]]'>
       <table>
-        <col label="h1" editable type="number">
-        <col label="header2" editable type="date">
+        <col label="h1">
+        <col label="header2">
         <col label="">
-        <col label="very long header three" editable>
+        <col label="very long header three">
       </table>
     </app-table>
 
@@ -57,51 +55,175 @@
   ```
 
 
-
   @demo
 -->
 <dom-module id="app-table">
 
 <template>
-  <content select="table"></content>
+  <style>
+    :host {
+      display: block;
+    }
+
+    :host .scrolltable {
+      overflow-x: scroll;
+      height: 100%;
+      display: flex;
+      display: -webkit-flex;
+      flex-direction: column;
+      -webkit-flex-direction: column;
+    }
+
+    :host .scrolltable > .header {
+    }
+
+    :host .scrolltable > .body {
+      /*noinspection CssInvalidPropertyValue*/
+      width: -webkit-fit-content;
+      overflow-y: scroll;
+      flex: 1;
+      -webkit-flex: 1;
+    }
+  </style>
+
+  <div class="scrolltable">
+    <content select="table">
+
+    </content>
+    <div class="body">
+      <table class="table">
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
 </template>
 
 <script>
 ;!function() {
 
+  var tooEarly = true;
+
+  var pending;
+
+
   var cols = [];
 
-  var el = function(tagName, parent) {
+
+  var append = function(tagName, parent) {
     var e = document.createElement(tagName);
     parent.appendChild(e);
     return e;
   };
 
-  var update = function(table, data) {
-    var tbody = table.querySelector('tbody', table);
-    if (tbody) {
-      table.removeChild(tbody);
+
+  var removeIfExists = function(el, parent) {
+    if (el) {
+      parent.removeChild(el);
+    }
+  };
+
+
+  var tableHeader = function(appTable) {
+    var contentChildren = appTable.getContentChildren();
+    if (contentChildren.length > 0) {
+      // TODO remove additional tables that might have been given in content
+      return contentChildren[0];
+    }
+    else {
+      throw '<app-table> expects a <table> to be wrapped';
+    }
+  };
+
+
+  var tableBody = function(appTable) {
+    return Polymer.dom(appTable.root).querySelector('.body table');
+  };
+
+
+  var minWidth = function() {
+    // TODO why 200? Could it depend on Twitter Bootstrap?
+    return this.editable ? 0 : 0;
+  };
+
+
+  var reset = function(appTable) {
+    var table = tableHeader(appTable);
+    var thead = table.querySelector('thead');
+    removeIfExists(thead, table);
+
+    thead = append('thead', table);
+    var j, th, tr = append('tr', thead);
+    for (j = 0; j < cols.length; j++) {
+      th = append('th', tr);
+      th.textContent = cols[j].label;
     }
 
-    if (data && data.length > 0) {
-      tbody = el('tbody', table);
+    table = tableBody(appTable);
+    var tbody = table.querySelector('tbody');
+    removeIfExists(tbody, table);
+  };
 
-      var i, tr, j, td, appInput;
+
+  var measure = function(appTable) {
+    var theader = tableHeader(appTable).querySelectorAll('.header th');
+    var tbody = tableBody(appTable).querySelectorAll('.body td');
+
+    // determine best widths
+    var i, j;
+    for (j = 0; j < cols.length; j++) {
+
+      /*
+       * offsetWidth is the width of the visual box incuding all borders.
+       * Can be calculated by adding width and paddings and borders
+       */
+      cols[j].width = theader[j].offsetWidth;
+
+      var offsetWidth;
+      for (i = 0; i < tbody.length;  i = i + cols.length) {
+        offsetWidth = Math.max(tbody[i + j].offsetWidth, cols[j].minWidth()) ;
+        if (cols[j].width < offsetWidth) {
+          cols[j].width = offsetWidth;
+        }
+        // no reason to iterate all over the table.body
+        break;
+      }
+    }
+
+    // apply best widths
+    var width;
+    for (j = 0; j < cols.length; j++) {
+      width = cols[j].width + 'px';
+      theader[j].style.minWidth = width;
+
+      for (i = 0; i < tbody.length;  i = i + cols.length) {
+        tbody[i + j].style.minWidth = width;
+        // no reason to iterate all over the table.body
+        break;
+      }
+    }
+  };
+
+
+  var update = function(appTable, data) {
+    reset(appTable);
+
+    var table = tableBody(appTable);
+    var tbody = table.querySelector('tbody');
+
+    if (data && data.length > 0) {
+      tbody = append('tbody', table);
+
+      var i, tr, j, td;
       for (i = 0; i < data.length; i++) {
         var record = data[i];
-        tr = el('tr', tbody);
+        tr = append('tr', tbody);
 
         for (j = 0; j < cols.length; j++) {
-          td = el('td', tr);
-          appInput = el('app-input', td);
-          // value could be undefined if record is shorter than cols
-          appInput.value = record[j];
-          appInput.setAttribute('type', cols[j].type);
-          if (!cols[j].editable) {
-            appInput.setAttribute('readonly', true);
-          }
+          td = append('td', tr);
+          td.textContent = record[j] || '';
         }
       }
+      measure(appTable);
     }
   };
 
@@ -121,51 +243,46 @@
     },
 
     _update: function(newValue, oldValue) {
-      if (newValue && newValue !== oldValue) {
-        update(this._table(), newValue);
+      if (tooEarly) {
+        pending = [newValue, oldValue];
+      }
+      else if (newValue && newValue !== oldValue) {
+        update(this, newValue);
       }
     },
 
-    _table: function() {
-      var contentChildren = this.getContentChildren();
-      if (contentChildren.length > 0) {
-        // TODO remove additional tables that might have been given in content
-        return contentChildren[0];
-      }
-      else {
-        throw '<app-table> expects a <table> to be wrapped';
-      }
-    },
 
 
     ready: function() {
-      var table = this._table();
+      var table = tableHeader(this);
+      table.classList.add('header');
 
-      // remove thead if it's been given in content
-      var thead = table.querySelector('thead', table);
-      if (thead) {
-        table.removeChild(thead);
-      }
+      // query its cols instead
+      var thead, colEls = table.querySelectorAll('col');
+      if (colEls.length > 0) {
+        thead = append('thead', table);
+        var tr = append('tr', thead);
 
-
-      var colChildren = table.querySelectorAll('col');
-      if (colChildren.length > 0) {
-        thead = el('thead', table);
-        var tr = el('tr', thead);
-
-        for (var i = 0; i < colChildren.length; i++) {
-          cols.push({
-            label: colChildren[i].getAttribute('label'),
-            type: colChildren[i].getAttribute('type'),
-            editable: colChildren[i].hasAttribute('editable')
-          });
-          var th = el('th', tr);
-          th.textContent = cols[i].label;
+        var i = 0, col;
+        for (; i < colEls.length; i++) {
+          col = Object.create(null);
+          col.label = colEls[i].getAttribute('label');
+          col.minWidth = minWidth;
+          cols.push(col);
         }
+
+        reset(this);
       }
       else {
-        console.warn('<app-table> expects <table><col> elements');
+        throw '<app-table> expects <table><col> elements'
       }
+    },
+
+
+    // var scrolltable = Polyer.dom(this.root).querySelector('.scrolltable');
+    attached: function() {
+      tooEarly = false;
+      this._update(pending[0], pending[1]);
     }
   });
 }();
