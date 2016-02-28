@@ -19,8 +19,7 @@
     "demo"
   ],
   "dependencies": {
-    "polymer": "~1.2.3",
-    "app-input": "^0.2.2"
+    "polymer": "~1.2.3"
   },
   "devDependencies": {
     "web-component-tester": "~4.1.0",
