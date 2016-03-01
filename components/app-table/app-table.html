@@ -1,0 +1,330 @@
+<link rel="import" href="../polymer/polymer.html">
+<!--
+  ## AppTable
+
+  A web-component table wrapper which provides data grid with fixed headers.
+
+  ### Usage
+  ```bash
+    bower install angiolep/app-table --save
+  ```
+
+  ```html
+    <link rel="import" href="bower_components/app-table/app-table.html">
+
+    <app-table>
+      <table>
+        <col label="h1">
+        <col label="header2">
+        <col label="">
+        <col label="very long header three">
+      </table>
+    </app-table>
+  ```
+
+  ### Columns
+
+  ```<app-table>``` expects an embedded HTML5 ``<table>`` to be given as its content. Its columns are expected to be defined via HTML5 ``<col>`` elements with following attributes:
+
+    - ``label``
+
+  ### Data
+  ``<app-table>`` expects an array of records (each records is turn an array) being set via its ``data`` attribute as follows:
+
+  ```html
+    <app-table data='[[43.31,"20156-08-30","world",null]]'>
+      <table>
+        <col label="h1">
+        <col label="header2">
+        <col label="">
+        <col label="very long header three">
+      </table>
+    </app-table>
+
+  ```
+
+  or using Javascript as follows:
+
+  ```javascript
+    document.querySelector('app-table')
+      .data = [
+        [13.24,'2015-12-24',null,'hello'],
+        [43.31,'20156-08-30','world',null]
+      ];
+  ```
+
+  ### Styles
+  
+  ```<app-table>``` expects you to specify its height as follows:
+  
+  ```html
+  <style is="custom-style">
+    app-table {
+      --body-max-height: 256px;
+    }
+  </style>
+  ```
+
+  @demo
+-->
+<dom-module id="app-table">
+
+  <template>
+    <style>
+      :host {
+        display: block;
+      }
+      .content-wrapper {
+        width: 100%;
+        overflow-x: auto
+      }
+      .content-wrapper ::content > table {
+        /*
+         * The table-layout property sets the table layout algorithm to be used for a table:
+         *
+         *   - auto    The column width is set by the widest unbreakable content in the cells
+         *   - fixed   The horizontal layout only depends on the table's width and the width
+         *             of the columns, not the contents of the cells
+         */
+        table-layout: fixed;
+        border-collapse: collapse;
+      }
+
+
+      .content-wrapper ::content > table thead tr th,
+      .content-wrapper ::content > table tbody,
+      .content-wrapper ::content > table tbody tr td {
+        box-sizing: border-box;
+      }
+
+      .content-wrapper ::content > table thead tr,
+      .content-wrapper ::content > table tbody {
+        /*
+         * Following will split header and body into separate boxes
+         */
+        display: block;
+        width: 100%;
+      }
+
+      .content-wrapper ::content > table tbody {
+        overflow-y: auto;
+        max-height: var(--body-max-height);
+      }
+    </style>
+
+    <div class="content-wrapper">
+      <content select="table"></content>
+    </div>
+  </template>
+
+  <script>
+    ;!function() {
+
+      var append = function(tagName, parent) {
+        var e = document.createElement(tagName);
+        parent.appendChild(e);
+        return e;
+      };
+
+
+      var removeIfExists = function(el, parent) {
+        if (el) {
+          parent.removeChild(el);
+        }
+      };
+
+
+      var getTable = function(self) {
+        var contentChildren = self.getContentChildren();
+        if (contentChildren.length > 0) {
+          // TODO remove additional tables that might have been given in content
+          return contentChildren[0];
+        }
+        else {
+          throw '<app-table> expects a <table> to be wrapped';
+        }
+      };
+
+
+
+      var reset = function(self) {
+        var table = getTable(self);
+        var thead = table.querySelector('thead');
+        removeIfExists(thead, table);
+
+        thead = append('thead', table);
+        var j, th, tr = append('tr', thead);
+        for (j = 0; j < self._private.cols.length; j++) {
+          th = append('th', tr);
+          th.textContent = self._private.cols[j].label;
+        }
+
+        var tbody = table.querySelector('tbody');
+        removeIfExists(tbody, table);
+        append('tbody', table);
+      };
+
+
+      var measure = function(self) {
+        var table = getTable(self);
+        var thead = table.querySelector('thead');
+        var th = thead.querySelectorAll('th');
+        var tbody = table.querySelector('tbody');
+        var td = tbody.querySelectorAll('td');
+
+
+        // determine best widths
+        var i, j, clientWidth, offsetWidth, totalWidth = 0;
+        for (j = 0; j < self._private.cols.length; j++) {
+          clientWidth = th[j].clientWidth;
+          offsetWidth = th[j].offsetWidth;
+
+          // NOTE: offsetWidth >= clientWidth 
+          //       because offsetWidth is the width of the visual box
+          //       including paddings and borders.
+          self._private.cols[j].minWidth = offsetWidth;
+
+          for (i = 0; i < td.length;  i = i + self._private.cols.length) {
+            clientWidth = td[i + j].clientWidth;
+            offsetWidth = td[i + j].offsetWidth;
+            if (self._private.cols[j].minWidth < offsetWidth) {
+              self._private.cols[j].minWidth = offsetWidth;
+            }
+          }
+
+          // accumulate the total width
+          totalWidth = totalWidth + self._private.cols[j].minWidth;
+        }
+
+        // compare the accumulated total width with the availble grand-parent width
+        var theadWidth = thead.offsetWidth;
+        if (totalWidth < theadWidth) {
+          var extra = Math.floor((theadWidth - totalWidth) / self._private.cols.length);
+          totalWidth = 0;
+          for (j = 0; j < self._private.cols.length; j++) {
+            self._private.cols[j].minWidth = self._private.cols[j].minWidth + extra;
+            totalWidth = totalWidth + self._private.cols[j].minWidth;
+          }
+        }
+
+        if (totalWidth >= theadWidth) {
+          // remove 1 pixel from the last column minumum width 
+          // to avoid horizontal scrollbar to be drawn when not necessary
+          self._private.cols[j-1].minWidth = self._private.cols[j-1].minWidth - 1;
+        }
+
+        // apply best widths
+        var width, totalWidth = 0;
+        for (j = 0; j < self._private.cols.length; j++) {
+          totalWidth = totalWidth + self._private.cols[j].minWidth;
+          width = self._private.cols[j].minWidth + 'px';
+          th[j].style.minWidth = width;
+
+          for (i = 0; i < td.length;  i = i + self._private.cols.length) {
+            td[i + j].style.minWidth = width;
+          }
+        }
+
+        if (tbody.scrollHeight > tbody.offsetHeight) {
+          // increment the total width to avoid horizontal scrollbar to be drawn when not necessary
+          totalWidth  = totalWidth + 32;
+        }
+        tbody.style.minWidth = (totalWidth) + 'px';
+      };
+
+
+
+      var update = function(self, data) {
+        reset(self);
+
+        var table = getTable(self);
+        var tbody = table.querySelector('tbody');
+
+        if (data && data.length > 0) {
+          var i, tr, j, td;
+          for (i = 0; i < data.length; i++) {
+            var record = data[i];
+            tr = append('tr', tbody);
+
+            for (j = 0; j < self._private.cols.length; j++) {
+              td = append('td', tr);
+              td.textContent = isNaN(record[j]) ? (record[j] || '') : record[j];
+            }
+          }
+        }
+        measure(self);
+      };
+
+
+      Polymer({
+        is: 'app-table',
+
+        properties: {
+          /**
+           * Private state. DO NOT access to it!
+           */
+          // TODO Google Polymer doesn't seem to provide an easy way to define private internal state :-(
+          _private: {
+            type: Object,
+            value: function() {
+              return {
+                tooEarly: true,
+                pending:  true,
+                cols: []
+              };
+            }
+          },
+          /**
+           * The data being set
+           */
+          data: {
+            type: Array,
+            value: function() { return []; },
+            observer: '_update'
+          }
+        },
+
+
+
+        _update: function(newValue, oldValue) {
+          if (this._private.tooEarly) {
+            this._private.pending = [newValue, oldValue];
+          }
+          else if (newValue && newValue !== oldValue) {
+            update(this, newValue);
+          }
+        },
+
+
+
+        ready: function() {
+          var table = getTable(this);
+
+          // query its cols instead
+          var colEls = table.querySelectorAll('col');
+          if (colEls.length > 0) {
+            var i = 0, col;
+            for (; i < colEls.length; i++) {
+              col = Object.create(null);
+              col.label = colEls[i].getAttribute('label');
+              //col.minWidth = ???
+              this._private.cols.push(col);
+            }
+            reset(this);
+            measure(this);
+          }
+          else {
+            throw '<app-table> expects <table><col> elements'
+          }
+        },
+
+
+        // var scrolltable = Polyer.dom(this.root).querySelector('.scrolltable');
+        attached: function() {
+          this._private.tooEarly = false;
+          this._update(this._private.pending[0], this._private.pending[1]);
+        }
+      });
+    }();
+  </script>
+</dom-module>

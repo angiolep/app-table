@@ -1,0 +1,67 @@
+<!doctype html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="../../webcomponentsjs/webcomponents-lite.js"></script>
+  <link rel="import" href="../app-table.html">
+  <!--<link rel="stylesheet" href="../../bootstrap/dist/css/bootstrap.css">-->
+  <style is="custom-style">
+    app-table {
+      --body-max-height: 256px;
+    }
+    th, td {
+      border: 1px dotted darkcyan;
+      white-space: nowrap;
+    }
+  </style>
+</head>
+
+<body>
+  <button onclick="addNone()">Add None</button>
+  <button onclick="addFew()">Add Few</button>
+  <button onclick="addMany()">Add Many</button>
+
+
+  <div style="width: 384px; border: 1px dotted gray; margin: 64px auto; padding: 32px;">
+  <!--<div>-->
+  <!--<app-table>-->
+  <app-table data='[[43.31,"2015-08-30","world",null],[98.45,"2016-11-22",null,"world"]]'>
+    <table>
+      <!--<colgroup>-->
+        <col label="header1" editable>
+        <col label="h2" editable type="number">
+        <col label="hello">
+        <col label="very long header three">
+        <col label="one more">
+      <!--</colgroup>-->
+    </table>
+  </app-table>
+  <!--</div>-->
+  </div>
+
+  <script>
+    var appTable = document.querySelector('app-table');
+
+    var addNone = function() {
+      appTable.data = [];
+    };
+
+    var addFew = function() {
+      appTable.data = [
+        ['2015-12-24',13.24,null,'hello',true],
+        ['2015-08-21',42.31,'world',null,false]
+      ];
+    };
+
+    var addMany = function() {
+      var data = [];
+      for (var i=0; i<100; i++) {
+        data.push(['2015-12-24', i, 'hello', i + 'hi', 'this is a very very very long text']);
+      }
+      appTable.data = data;
+    };
+
+  </script>
+</body>
+</html>
+
