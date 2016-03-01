@@ -60,7 +60,7 @@
   ```html
   <style is="custom-style">
     app-table {
-      --app-table-body-height: 256px;
+      --body-max-height: 256px;
     }
   </style>
   ```
@@ -74,7 +74,11 @@
       :host {
         display: block;
       }
-      :host > ::content > table {
+      .content-wrapper {
+        width: 100%;
+        overflow-x: auto
+      }
+      .content-wrapper ::content > table {
         /*
          * The table-layout property sets the table layout algorithm to be used for a table:
          *
@@ -86,28 +90,31 @@
         border-collapse: collapse;
       }
 
-      :host > ::content > table thead tr {
-        /*
-         * Following will split header and body into separate boxes
-         */
-        display: block;
-        position: relative;
+
+      .content-wrapper ::content > table thead tr th,
+      .content-wrapper ::content > table tbody,
+      .content-wrapper ::content > table tbody tr td {
+        box-sizing: border-box;
       }
-      :host > ::content > table tbody {
+
+      .content-wrapper ::content > table thead tr,
+      .content-wrapper ::content > table tbody {
         /*
          * Following will split header and body into separate boxes
          */
         display: block;
-        overflow-y: auto;
         width: 100%;
       }
 
-      :host > ::content > table tbody {
-        height: var(--app-table-body-height);
+      .content-wrapper ::content > table tbody {
+        overflow-y: auto;
+        max-height: var(--body-max-height);
       }
     </style>
 
-    <content select="table"></content>
+    <div class="content-wrapper">
+      <content select="table"></content>
+    </div>
   </template>
 
   <script>
@@ -151,55 +158,80 @@
           th = append('th', tr);
           th.textContent = self._private.cols[j].label;
         }
-        
+
         var tbody = table.querySelector('tbody');
         removeIfExists(tbody, table);
+        append('tbody', table);
       };
 
 
       var measure = function(self) {
         var table = getTable(self);
-        var theader = table.querySelectorAll('th');
-        var tbody = table.querySelectorAll('td');
+        var thead = table.querySelector('thead');
+        var th = thead.querySelectorAll('th');
+        var tbody = table.querySelector('tbody');
+        var td = tbody.querySelectorAll('td');
+
 
         // determine best widths
-        var i, j;
+        var i, j, clientWidth, offsetWidth, totalWidth = 0;
         for (j = 0; j < self._private.cols.length; j++) {
+          clientWidth = th[j].clientWidth;
+          offsetWidth = th[j].offsetWidth;
 
-          /*
-           * offsetWidth is the width of the visual box incuding all borders.
-           * Can be calculated by adding width and paddings and borders
-           */
-          self._private.cols[j].width = theader[j].offsetWidth;
+          // NOTE: offsetWidth >= clientWidth 
+          //       because offsetWidth is the width of the visual box
+          //       including paddings and borders.
+          self._private.cols[j].minWidth = offsetWidth;
 
-          var offsetWidth;
-          for (i = 0; i < tbody.length;  i = i + self._private.cols.length) {
-            offsetWidth = tbody[i + j].offsetWidth;
-            if (self._private.cols[j].width < offsetWidth) {
-              self._private.cols[j].width = offsetWidth;
+          for (i = 0; i < td.length;  i = i + self._private.cols.length) {
+            clientWidth = td[i + j].clientWidth;
+            offsetWidth = td[i + j].offsetWidth;
+            if (self._private.cols[j].minWidth < offsetWidth) {
+              self._private.cols[j].minWidth = offsetWidth;
             }
           }
+
+          // accumulate the total width
+          totalWidth = totalWidth + self._private.cols[j].minWidth;
+        }
+
+        // compare the accumulated total width with the availble grand-parent width
+        var theadWidth = thead.offsetWidth;
+        if (totalWidth < theadWidth) {
+          var extra = Math.floor((theadWidth - totalWidth) / self._private.cols.length);
+          totalWidth = 0;
+          for (j = 0; j < self._private.cols.length; j++) {
+            self._private.cols[j].minWidth = self._private.cols[j].minWidth + extra;
+            totalWidth = totalWidth + self._private.cols[j].minWidth;
+          }
+        }
+
+        if (totalWidth >= theadWidth) {
+          // remove 1 pixel from the last column minumum width 
+          // to avoid horizontal scrollbar to be drawn when not necessary
+          self._private.cols[j-1].minWidth = self._private.cols[j-1].minWidth - 1;
         }
 
         // apply best widths
-        var width;
+        var width, totalWidth = 0;
         for (j = 0; j < self._private.cols.length; j++) {
-          width = self._private.cols[j].width + 'px';
-          if (j === self._private.cols.length - 1) {
-            theader[j].style.width = width;
-          } else {
-            theader[j].style.minWidth = width;
-          }
+          totalWidth = totalWidth + self._private.cols[j].minWidth;
+          width = self._private.cols[j].minWidth + 'px';
+          th[j].style.minWidth = width;
 
-          for (i = 0; i < tbody.length;  i = i + self._private.cols.length) {
-            if (j === self._private.cols.length - 1) {
-              tbody[i + j].style.width = width;
-            } else {
-              tbody[i + j].style.minWidth = width;
-            }
+          for (i = 0; i < td.length;  i = i + self._private.cols.length) {
+            td[i + j].style.minWidth = width;
           }
         }
+
+        if (tbody.scrollHeight > tbody.offsetHeight) {
+          // increment the total width to avoid horizontal scrollbar to be drawn when not necessary
+          totalWidth  = totalWidth + 32;
+        }
+        tbody.style.minWidth = (totalWidth) + 'px';
       };
+
 
 
       var update = function(self, data) {
@@ -209,8 +241,6 @@
         var tbody = table.querySelector('tbody');
 
         if (data && data.length > 0) {
-          tbody = append('tbody', table);
-
           var i, tr, j, td;
           for (i = 0; i < data.length; i++) {
             var record = data[i];
@@ -221,8 +251,8 @@
               td.textContent = isNaN(record[j]) ? (record[j] || '') : record[j];
             }
           }
-          measure(self);
         }
+        measure(self);
       };
 
 
@@ -269,14 +299,10 @@
 
         ready: function() {
           var table = getTable(this);
-          table.classList.add('header');
 
           // query its cols instead
-          var thead, colEls = table.querySelectorAll('col');
+          var colEls = table.querySelectorAll('col');
           if (colEls.length > 0) {
-            thead = append('thead', table);
-            var tr = append('tr', thead);
-
             var i = 0, col;
             for (; i < colEls.length; i++) {
               col = Object.create(null);
@@ -284,6 +310,8 @@
               //col.minWidth = ???
               this._private.cols.push(col);
             }
+            reset(this);
+            measure(this);
           }
           else {
             throw '<app-table> expects <table><col> elements'

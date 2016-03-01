@@ -4,10 +4,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <script src="../../webcomponentsjs/webcomponents-lite.js"></script>
   <link rel="import" href="../app-table.html">
-  <link rel="stylesheet" href="../../bootstrap/dist/css/bootstrap.css">
+  <!--<link rel="stylesheet" href="../../bootstrap/dist/css/bootstrap.css">-->
   <style is="custom-style">
     app-table {
-      --app-table-body-height: 256px;
+      --body-max-height: 256px;
     }
     th, td {
       border: 1px dotted darkcyan;
@@ -22,7 +22,7 @@
   <button onclick="addMany()">Add Many</button>
 
 
-  <div style="width: 384px; border: 1px dotted gray; margin: 64px auto; padding: 32px; overflow-x: auto">
+  <div style="width: 384px; border: 1px dotted gray; margin: 64px auto; padding: 32px;">
   <!--<div>-->
   <!--<app-table>-->
   <app-table data='[[43.31,"2015-08-30","world",null],[98.45,"2016-11-22",null,"world"]]'>
